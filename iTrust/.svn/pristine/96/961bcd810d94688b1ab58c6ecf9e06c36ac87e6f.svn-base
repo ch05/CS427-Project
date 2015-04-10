@@ -1,0 +1,100 @@
+package edu.ncsu.csc.itrust.dao.Obstetrics;
+
+import static org.junit.Assert.assertTrue;
+
+import java.sql.Date;
+import java.util.Calendar;
+import java.util.List;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import edu.ncsu.csc.itrust.beans.ObstetricsBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.dao.mysql.ObstetricsDAO;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+import edu.ncsu.csc.itrust.testutils.EvilDAOFactory;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+public class ObstetricsTest {
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private DAOFactory evilFactory = EvilDAOFactory.getEvilInstance();
+	private TestDataGenerator tdg = new TestDataGenerator();
+	private ObstetricsDAO od;
+	private ObstetricsDAO eod;
+	
+	/**
+	 * @throws java.lang.Exception
+	 */
+	@Before
+	public void setUp() throws Exception {
+		od = new ObstetricsDAO(factory);
+		eod = new ObstetricsDAO(evilFactory);
+		tdg.obinit1();
+		tdg.obinit2();
+		tdg.obinit3();
+	}
+	
+	@Test
+	public void testCorrectDates() throws DBException, ITrustException {
+		List<Date> l = od.obDateForPatient(1L);
+		System.out.println(l.get(0));
+		System.out.println(l.get(1));
+		assertTrue(l.size() == 2);
+		assertTrue(l.get(0).equals(Date.valueOf("2002-04-23")));
+		assertTrue(l.get(1).equals(Date.valueOf("2000-04-23")));	
+	}
+	
+	@Test
+	public void testNoDates() throws DBException, ITrustException {
+		List<Date> l = od.obDateForPatient(2L);
+		assertTrue(l.size() == 0);
+	}
+	
+	@Test
+	public void testInsert() throws DBException, ITrustException {
+		ObstetricsBean ob = new ObstetricsBean(2000, "23-5", (double)3, "Vaginal Delivery", Date.valueOf("2000-05-10"), 1L);
+		assertTrue(od.insertOBRecord(ob));
+	}
+	
+	@Test
+	public void testOBRecord() throws DBException, ITrustException {
+		ObstetricsBean ob = new ObstetricsBean(2000, "23-5", (double)3, "Vaginal Delivery", Date.valueOf("2000-05-10"), 1L);
+		od.insertOBRecord(ob);
+		ObstetricsBean b = od.obRecordsForPatient(1L, new Date(Calendar.getInstance().getTime().getTime()));
+		assertTrue(ob.equalTo(b));
+	}
+	
+	@Test
+	public void testNoOBRecord() throws DBException, ITrustException {
+		ObstetricsBean b = od.obRecordsForPatient(3L, new Date(Calendar.getInstance().getTime().getTime()));
+		assertTrue(b == null);
+	}
+	
+	@Test
+	public void testEDD() throws DBException, ITrustException {
+		ObstetricsBean ob = new ObstetricsBean(2000, "23-5", (double)3, "Vaginal Delivery", Date.valueOf("2000-01-01"), 1L);
+		ob.print();
+		assertTrue(ob.getEDD().compareTo(Date.valueOf("2000-10-07")) == 0);
+	}
+	
+	@Test
+	public void test(){
+		ObstetricsBean ob = new ObstetricsBean(2000, "23-5", (double)3, "Vaginal Delivery", Date.valueOf("2000-05-10"), 1L);
+		try {
+			eod.insertOBRecord(ob);
+			eod.obDateForPatient(1L);
+			eod.obRecordsForPatient(1L, Date.valueOf("2000-01-02"));
+		} catch (DBException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ITrustException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		assertTrue(true);
+	}
+}

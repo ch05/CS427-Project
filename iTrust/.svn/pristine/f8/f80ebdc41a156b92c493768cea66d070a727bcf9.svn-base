@@ -1,0 +1,156 @@
+<%@page errorPage="/auth/exceptionHandler.jsp" %>
+
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.EpidemicDAO"%>
+<%@page import="edu.ncsu.csc.itrust.beans.LabProcedureBean"%>
+<%@page import="edu.ncsu.csc.itrust.beans.ObstetricsBean"%>
+<%@page import="edu.ncsu.csc.itrust.action.ViewMyReportRequestsAction"%>
+<%@page import="edu.ncsu.csc.itrust.beans.PatientBean"%>
+<%@page import="edu.ncsu.csc.itrust.action.LabProcHCPAction"%>
+<%@page import="edu.ncsu.csc.itrust.beans.ReportRequestBean"%>
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.CODTrendsDAO"%>
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.ObstetricsDAO"%>
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.EpidemicDAO"%>
+<%@page import="java.text.DateFormat"%>
+<%@page import="java.text.SimpleDateFormat"%>
+<%@page import="java.util.Date"%>
+<%@page import="java.util.Locale"%>
+
+<%@page import="java.sql.*" %>
+
+<%@page import="java.util.List"%>
+
+<%@include file="/global.jsp" %>
+
+<%
+pageTitle = "iTrust - View Cause of Death Trends";
+%>
+
+<%@include file="/header.jsp" %>
+<%
+	DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+	//Get the submitted parameters to search by
+	String ICD = request.getParameter("ICDCode");
+	String zip = request.getParameter("ZipCode");
+	String date = request.getParameter("schedDate");
+	String option = request.getParameter("Option");
+	
+	
+	ICD = ICD == null ? "487.00" : ICD;
+	zip = zip == null ? "27601" : zip;
+	date = date == null ? (new SimpleDateFormat("MM/dd/yyyy").format(new Date())) : date;
+	option = option == null ? "Epidemics" : option;
+%>	
+
+<form>
+<table class="fTable" align="center">
+		<tr>
+			<th colspan="3">Request Biosurveillance</th>
+		</tr>
+		<tr class="subHeader">
+			<td>ICD Code</td>
+			<td>Zip Code</td>
+			<td>Date</td>
+			<td>Option</td>
+		</tr>
+<tr>
+		
+<td>
+	<td><input name="ICDCode" value="<%=StringEscapeUtils.escapeHtml("" + 487.00)%>" type="text"></td>
+</td>
+
+<td>
+	<td><input name="ZipCode" value="<%=StringEscapeUtils.escapeHtml("" + 27601)%>" type="text"></td>		
+</td>
+
+<td>
+		<input type="text" name="schedDate" value="<%= StringEscapeUtils.escapeHtml("" + (new SimpleDateFormat("MM/dd/yyyy").format(new Date()))) %>"        
+		value="" /><input type="button" value="Select Date" onclick="displayDatePicker('schedDate');" />				
+</td>
+
+<td>
+<select name="Option">
+	<option value="Epidemics" <%if(option.equalsIgnoreCase("Epidemics")){%>selected<%}%>>Epidemics</option>
+	<option value="Diagnoses" <%if(option.equalsIgnoreCase("Diagnoses")){%>selected<%}%>>Diagnoses</option>
+</select> 
+		
+<input type="submit" value="Submit" name="submit" submit"" />
+
+</td>
+
+</tr>
+</table>
+</form>
+	
+<br></br>	
+	
+<div class="col-sm-12">
+	<div class="panel panel-primary panel-notification">
+	<div style="padding-bottom: 10px" class="panel-heading"><h3 class="panel-title">Result</h3></div>
+	<div class="panel-body">
+		<ul>
+		<%
+	
+		/* System.out.println(ICD);
+		System.out.println(zip);
+		System.out.println(date);
+		System.out.println(option);		
+		System.out.println(); */
+		
+		EpidemicDAO epd = new EpidemicDAO(DAOFactory.getProductionInstance());
+		
+		//Convert the data to proper format
+		float ICDCode = Float.valueOf(ICD);		
+		Date formatedDate = new SimpleDateFormat("MM/dd/yyyy", Locale.ENGLISH).parse(date);
+		java.sql.Date sqlDate = new java.sql.Date(formatedDate.getTime());
+				
+		/* System.out.println("formated java utl date: " + formatedDate);
+		System.out.println("sql date: " + sqlDate);
+		System.out.println("ICD code in float: " + ICDCode); */
+		
+		if(option.equals("Epidemics")){//return a boolean
+			if(ICDCode == 487.0){//Influenza				
+				boolean result = epd.isInfluenzaEpidemic(zip, sqlDate);
+				out.print("Influenza diagnosis: ");				
+				out.print(result);
+			}
+			else if (ICDCode == 84.5){//Malaria
+				boolean result = epd.isMalariaEpidemic(zip, sqlDate);
+				out.print("Malaria diagnosis: ");
+				out.print(result);
+			}
+			else{
+				out.print("The diagnosis code is invalid. Please try again.");
+			}
+		}
+		
+		if(option.equals("Diagnoses")){//show diagram
+			//Region
+			List<Integer> regionList = epd.diagnosisRegion(zip, sqlDate, ICD);
+			out.print("Region: ");
+			for(int i = 0; i < regionList.size(); i++){				
+				out.print("<li>" + (i+1) + ". " + regionList.get(i) + "</li>");
+			}
+			
+			//State
+			List<Integer> stateList = epd.diagnosisRegion(zip, sqlDate, ICD);
+			out.print("State: ");
+			for(int i = 0; i < stateList.size(); i++){				
+				out.print("<li>" + (i+1) + ". " + stateList.get(i) + "</li>");
+			}
+			
+			//All
+			List<Integer> allList = epd.diagnosisAll(zip, sqlDate, ICD);
+			out.print("All: ");
+			for(int i = 0; i < allList.size(); i++){				
+				out.print("<li>" + (i+1) + ". " + allList.get(i) + "</li>");
+			}
+		}
+		
+		%>
+</div>
+
+</div>
+
+
+<%@include file="/footer.jsp" %>

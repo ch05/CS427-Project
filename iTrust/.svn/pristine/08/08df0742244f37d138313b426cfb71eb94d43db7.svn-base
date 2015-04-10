@@ -1,0 +1,64 @@
+package edu.ncsu.csc.itrust.http;
+
+import java.text.DateFormat;
+import java.io.IOException;
+
+import org.xml.sax.SAXException;
+
+import com.meterware.httpunit.HttpUnitOptions;
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebForm;
+import com.meterware.httpunit.WebResponse;
+
+public class TransactionlogTest extends iTrustHTTPTest{
+	
+	@Override
+	protected void setUp() throws Exception{
+		super.setUp();
+		HttpUnitOptions.setExceptionsThrownOnScriptError(false);
+	}
+	
+	//Please uncomment and fix the error!!!
+	/*
+	public void testRole1(){
+		try{
+			WebConversation wc = new WebConversation();
+			WebResponse translog = wc.getResponse(iTrustHTTPTest.LOGADDRESS);
+			WebForm form = translog.getForms()[0];
+			form.setParameter("request", "1");
+			form.setParameter("role1", "PATIENT");
+			WebResponse transaction = translog.getForms()[0].submit();
+			assertFalse(transaction.getTableWithID("250").getAttribute("Role1").equals("PATIENT"));
+		}
+		catch(IOException e){
+			fail("Exception occured");
+		}
+		catch (SAXException e) {
+			fail("Exception occurred");
+		}
+	}
+	
+	
+	
+	public void testTransaction(){
+		try{
+			WebConversation wc = new WebConversation();
+			WebResponse translog = wc.getResponse(iTrustHTTPTest.LOGADDRESS);
+			WebForm form = translog.getForms()[0];
+			form.setParameter("request", "1");
+			form.setParameter("transaction", "Failed login");
+			WebResponse transaction = translog.getForms()[0].submit();
+			assertFalse(transaction.getTableWithID("250").getAttribute("Transaction Name").equals("Failed login"));
+		}
+		catch(IOException e){
+			fail("Exception occured");
+		}
+		catch (SAXException e) {
+			fail("Exception occurred");
+		}
+	}
+	*/
+}
+	
+	
+	

@@ -1,0 +1,62 @@
+package edu.ncsu.csc.itrust.beans;
+
+import java.sql.Date;
+import java.util.Calendar;
+
+public class ObstetricsBean {
+	public int yearOfConception;
+	public String numWeeksPregnant;
+	public Double numHoursInLabor;
+	public String deliveryType;
+	public Date LMP;
+	public long patientMID;
+	
+	/**
+	 * Creates a new ObstetricsBean
+	 * @param _yearOfConception Year of Conception
+	 * @param numWeeksPreg # Weeks Preg
+	 * @param numHoursLabor # Hours Labor
+	 * @param delivType Delivery Type
+	 * @param _LMP Last Menstrual Period
+	 * @param _patientMID Patient MID
+	 */
+	public ObstetricsBean(int _yearOfConception, String numWeeksPreg, Double numHoursLabor, String delivType, Date _LMP, long _patientMID){
+		yearOfConception = _yearOfConception;
+		numWeeksPregnant = numWeeksPreg;
+		numHoursInLabor = numHoursLabor;
+		deliveryType = delivType;
+		LMP = _LMP;
+		patientMID = _patientMID;
+	}
+	
+	public Date getEDD(){
+		Calendar c = Calendar.getInstance();
+		c.setTime(LMP);
+		c.add(Calendar.DATE, 280);
+		
+		return new Date(c.getTimeInMillis());
+	}
+	
+	public void print(){
+		System.out.println("\n------------------------------------");
+		System.out.println("YOC: " + yearOfConception);
+		System.out.println("# Preg: " + numWeeksPregnant);
+		System.out.println("# Labor: " + numHoursInLabor);
+		System.out.println("Deliv Type: " + deliveryType);
+		System.out.println("LMP: " + LMP);
+		System.out.println("MID: " + patientMID);
+		System.out.println("\n------------------------------------");
+
+	}
+	
+	public boolean equalTo(ObstetricsBean ob){
+		
+		return ob.yearOfConception == this.yearOfConception &&
+				ob.numHoursInLabor.equals(this.numHoursInLabor) &&
+				ob.numWeeksPregnant.equals(this.numWeeksPregnant) &&
+				ob.deliveryType.equals(this.deliveryType) && 
+				ob.LMP.compareTo(this.LMP) == 0 &&
+				ob.patientMID == this.patientMID;
+	}
+	
+}

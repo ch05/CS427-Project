@@ -1,0 +1,138 @@
+package edu.ncsu.csc.itrust.dao.mysql;
+
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import edu.ncsu.csc.itrust.DBUtil;
+import edu.ncsu.csc.itrust.beans.ObstetricsBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+
+public class ObstetricsDAO {
+
+	private DAOFactory factory;
+
+	
+	public ObstetricsDAO(DAOFactory factory) {
+		this.factory = factory;
+	}
+	
+	@SuppressWarnings("finally")
+	public List<Date> obDateForPatient(long patientMID) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<Date> dates = new ArrayList<Date>();
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT initDate FROM obinit WHERE MID = ? ORDER BY initDate DESC");
+			ps.setLong(1, patientMID);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			while(rs.next()){
+				dates.add(Date.valueOf(rs.getString("initDate")));
+			}	
+			
+			return dates;
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return dates;
+		}
+	}
+	
+	@SuppressWarnings("finally")
+	public boolean insertOBRecord(ObstetricsBean ob) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("INSERT INTO pregnancy (YOC, numWeeksPregnant, numHoursLabor, deliveryType) VALUES (?, ?, ?, ?)");
+			ps.setLong(1, ob.yearOfConception);
+			ps.setString(2, ob.numWeeksPregnant);
+			if(ob.numHoursInLabor == null)
+				ps.setNull(3, java.sql.Types.DOUBLE);
+			else
+				ps.setDouble(3, ob.numHoursInLabor);
+			ps.setString(4, ob.deliveryType);
+			int rs;
+			rs = ps.executeUpdate();
+			ps.close();
+			ps = conn.prepareStatement("SELECT * FROM pregnancy ORDER BY id DESC");
+			ResultSet rs1;
+			rs1 = ps.executeQuery();
+			int lastID = -1;
+			if(rs1.next())
+				lastID = rs1.getInt("id");
+			
+			ps.close();
+			rs1.close();
+			ps = conn.prepareStatement("INSERT INTO obinit (MID, initDate, LMP, pregID) VALUES (?, ?, ?, ?)");
+			Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+			ps.setLong(1, ob.patientMID);
+			ps.setDate(2, currentDate);
+			ps.setDate(3, ob.LMP);
+			ps.setInt(4, lastID);
+			ps.executeUpdate();
+			return true;
+		} catch (SQLException e) {
+			System.out.println("Error Message: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	@SuppressWarnings("finally")
+	public ObstetricsBean obRecordsForPatient(long patientMID, Date d) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		PreparedStatement ps2 = null;
+		ObstetricsBean ob = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT * FROM obinit WHERE MID = ? AND initDate = ?");
+			ps.setLong(1, patientMID);
+			ps.setDate(2, d);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()){
+				ps2 = conn.prepareStatement("SELECT * FROM pregnancy WHERE id = ?");
+				ps2.setInt(1, rs.getInt("pregID"));
+	
+				ResultSet pregSet;
+				pregSet = ps2.executeQuery();
+				pregSet.next();
+				//int _yearOfConception, String numWeeksPreg, Double numHoursLabor, String delivType, Date _LMP, long _patientMID
+				long MID = rs.getLong("MID");
+				Date LMP = rs.getDate("LMP");
+				int yoc = pregSet.getInt("YOC");
+				String numpreg = pregSet.getString("numWeeksPregnant");
+				String deliveryType = pregSet.getString("deliveryType");
+				Double hoursLabor = pregSet.getDouble("numHoursLabor");
+				ob = new ObstetricsBean(yoc, numpreg, hoursLabor, deliveryType, LMP, MID);
+				ps2.close();
+			}	
+			
+			ps.close();
+			
+			return ob;
+		} catch (SQLException e) {
+			System.out.println("Error: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+}

@@ -1,0 +1,79 @@
+package edu.ncsu.csc.itrust.Team805.UC65;
+
+import java.util.List;
+
+import junit.framework.TestCase;
+
+import org.junit.Test;
+
+import edu.ncsu.csc.itrust.beans.RequestBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.dao.mysql.RequestDAO;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+public class RequestDAOTest extends TestCase {
+
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private RequestDAO requestDAO = factory.getRequestDAO();
+
+	@Override
+	protected void setUp() throws Exception {
+		TestDataGenerator gen = new TestDataGenerator();
+		gen.clearAllTables();
+		gen.request1();
+	}
+	
+	@Test
+	public void testGetRequests() throws DBException{
+		List<RequestBean> requests = requestDAO.getRequests();
+		RequestBean request = requests.get(0);
+		
+		assertEquals(requests.size(), 2);
+		assertEquals(request.getRequestedPage(), "/iTrust/login.jsp");
+		assertEquals(request.getContentLength(), 15000);
+		assertEquals(request.getHost(), "localhost:8080");
+		assertEquals(request.getUserAgent(), "Mozilla/5.0 (X11 Linux x86_64)");
+	}
+	
+	@Test
+	public void testAddRequest() throws DBException {
+		RequestBean request = new RequestBean();
+		request.setContentLength(10);
+		request.setHost("testHost");
+		request.setRequestedPage("testPage");
+		request.setUserAgent("testUserAgent");
+		
+		requestDAO.addRequest(request);
+		List<RequestBean> requests = requestDAO.getRequests();
+		RequestBean requestBean = requests.get(2);
+		
+		assertEquals(requests.size(), 3);
+		assertEquals(requestBean.getRequestedPage(), "testPage");
+		assertEquals(requestBean.getContentLength(), 10);
+		assertEquals(requestBean.getHost(), "testHost");
+		assertEquals(requestBean.getUserAgent(), "testUserAgent");
+	}
+	
+	@Test
+	public void testAddRequestException() throws DBException {
+		try {
+			requestDAO.addRequest(null);
+			fail();
+		}
+		catch(Exception e) {
+			// pass
+		}
+	}
+	
+	@Test
+	public void testGetNumRequestsPerDay() throws DBException {
+		assertEquals(requestDAO.getNumRequestsPerDay(), 2);
+	}
+	
+	@Test
+	public void testGetAverageContentLength() throws DBException {
+		assertEquals(requestDAO.getAverageContentLength(), 7513);
+	}
+}

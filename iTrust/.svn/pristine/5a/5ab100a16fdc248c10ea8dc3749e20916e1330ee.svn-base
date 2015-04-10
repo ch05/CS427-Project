@@ -1,0 +1,80 @@
+package edu.ncsu.csc.itrust.Team805;
+
+import java.util.List;
+
+import org.junit.Test;
+
+import junit.framework.TestCase;
+import edu.ncsu.csc.itrust.beans.ResponseBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.dao.mysql.ResponseDAO;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+public class ResponseTest extends TestCase {
+
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private ResponseDAO responseDAO = factory.getResponseDAO();
+
+	@Override
+	protected void setUp() throws Exception {
+		TestDataGenerator gen = new TestDataGenerator();
+		gen.clearAllTables();
+		gen.response1();
+	}
+	
+	@Test
+	public void testGetResponses() throws DBException{
+		List<ResponseBean> responses = responseDAO.getResponses();
+		
+		assertTrue(responses.size() == 1);
+		assertTrue(responses.get(0).getRequestedPage().equals("/iTrust/login.jsp"));
+		assertTrue(responses.get(0).getContentLength() == 13378);
+		assertTrue(responses.get(0).getLatency() == 3);
+	}
+	
+	@Test
+	public void testAddResponse() throws DBException{
+		ResponseBean rb = new ResponseBean();
+		rb.setLatency(1000.0);
+		rb.setRequestedPage("/testPage/");
+		
+		responseDAO.addResponse(rb);
+		
+		List<ResponseBean> responses = responseDAO.getResponses();
+		
+		assertTrue(responses.size() == 2);
+		assertTrue(responses.get(1).getRequestedPage().equals("/testPage/"));
+		assertTrue(responses.get(1).getLatency() == 1000.0);
+	}
+	
+	@Test
+	public void testUpdateContentLength() throws DBException{
+		ResponseBean rb = new ResponseBean();
+		rb.setContentLength(123);
+		
+		responseDAO.updateContentLength(rb, 1);
+		
+		List<ResponseBean> responses = responseDAO.getResponses();
+		
+		assertTrue(responses.size() == 1);
+		assertTrue(responses.get(0).getRequestedPage().equals("/iTrust/login.jsp"));
+		assertTrue(responses.get(0).getLatency() == 3.0);
+		assertTrue(responses.get(0).getContentLength() == 123);
+	}
+	
+	@Test
+	public void testGetAverageLatency() throws DBException{
+		int averageLatency = responseDAO.getAverageLatency();
+		
+		assertTrue(averageLatency == 3);
+	}
+	
+	@Test
+	public void testGetAverageContentLength() throws DBException{
+		int averageLatency = responseDAO.getAverageContentLength();
+		
+		assertTrue(averageLatency == 13378);
+	}
+}

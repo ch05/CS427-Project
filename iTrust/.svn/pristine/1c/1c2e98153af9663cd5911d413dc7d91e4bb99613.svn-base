@@ -1,0 +1,87 @@
+<%@page errorPage="/auth/exceptionHandler.jsp"%>
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.RequestDAO"%>
+<%@page import="edu.ncsu.csc.itrust.beans.RequestBean"%>
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.ResponseDAO"%>
+<%@page import="edu.ncsu.csc.itrust.beans.ResponseBean"%>
+<%@page import="java.util.List"%>
+<%@include file="/global.jsp"%>
+
+<head>
+
+<%
+pageTitle = "iTrust - View Network Information";
+%>
+
+<%@include file="/header.jsp"%>
+
+</head>
+
+<%
+	RequestDAO reqDAO = prodDAO.getRequestDAO();
+	ResponseDAO resDAO = prodDAO.getResponseDAO();
+%>
+
+<body>
+	
+	<div style="text-align: center;">
+		<h1>Network Information</h1>
+		<table class="fancyTable" align="center" border="1" cellpadding="2" cellspacing="2">
+			<thead>
+				<th>Network Type</th>
+				<th>Value</th>
+			</thead>
+			
+			<tbody>
+				<%
+					//Total Number of Requests
+					List<RequestBean> requests = reqDAO.getRequests();
+				%>
+				<tr>
+					<td>Total Number of HTTP Requests</td>
+					<td><%= requests.size() %></td>
+				</tr>
+				
+				<%
+					//Total Number of Responses
+					List<ResponseBean> responses = resDAO.getResponses();
+				%>
+				<tr>
+					<td>Total Number of HTTP Responses</td>
+					<td><%= responses.size() %></td>
+				</tr>
+				
+				<%
+					//Total Request Body Size
+					double reqSize = 0;
+					for (RequestBean req : requests){
+						if (req.getContentLength() != -1){
+							reqSize += req.getContentLength();
+						}
+					}
+					
+					reqSize = (reqSize * (Math.pow(10.0, -6.0)));
+				%>
+				<tr>
+					<td>Total HTTP Request Body Size (MB)</td>
+					<td><%= reqSize %></td>
+				</tr>
+				
+				<%
+					//Total Response Body Size
+					double resSize = new Integer(0);
+					for (ResponseBean res : responses){
+						resSize += res.getContentLength();
+					}
+					
+					resSize = (resSize * (Math.pow(10.0, -6.0)));
+				%>
+				<tr>
+					<td>Total HTTP Response Body Size (MB)</td>
+					<td><%= resSize %></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</body>
+</html>
+<%@include file="/footer.jsp"%>

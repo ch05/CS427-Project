@@ -1,0 +1,157 @@
+package edu.ncsu.csc.itrust.dao.mysql;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import edu.ncsu.csc.itrust.DBUtil;
+import edu.ncsu.csc.itrust.beans.RequestBean;
+import edu.ncsu.csc.itrust.beans.loaders.RequestBeanLoader;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.exception.DBException;
+
+/**
+ * Used to keep track of HTTP requests
+ * 
+ * DAO stands for Database Access Object. All DAOs are intended to be reflections of the database, that is,
+ * one DAO per table in the database (most of the time). For more complex sets of queries, extra DAOs are
+ * added. DAOs can assume that all data has been validated and is correct.
+ * 
+ * DAOs should never have setters or any other parameter to the constructor than a factory. All DAOs should be
+ * accessed by DAOFactory (@see {@link DAOFactory}) and every DAO should have a factory - for obtaining JDBC
+ * connections and/or accessing other DAOs.
+ * 
+ *  
+ *  
+ */
+public class RequestDAO {
+	private DAOFactory factory;
+	private RequestBeanLoader requestLoader; 
+	
+	public RequestDAO(DAOFactory factory) {
+		this.factory = factory;
+		this.requestLoader = new RequestBeanLoader();
+	}
+	
+	public void addRequest(RequestBean request) throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("INSERT INTO request (contentLength, requestedPage, host, userAgent)"
+					+ " VALUES (?, ?, ?, ?)");
+			ps.setInt(1, request.getContentLength());
+			ps.setString(2, request.getRequestedPage());
+			ps.setString(3, request.getHost());
+			ps.setString(4, request.getUserAgent());
+			ps.execute();
+			ps.close();
+			
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns a list of all HTTP requests in the database 
+	 * @return List of RequestBeans representing the HTTP requests
+	 * @throws DBException
+	 */
+	public List<RequestBean> getRequests() throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT * FROM request");
+			ResultSet rs = ps.executeQuery();
+			
+			List<RequestBean> requests = requestLoader.loadList(rs);
+			rs.close();
+			ps.close();
+			
+			return requests;
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns the average number of http requests that the website receives per day
+	 * @return int representing the average number of requests
+	 * @throws DBException
+	 */
+	public int getNumRequestsPerDay() throws DBException {		
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			// Get total number of distinct days
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT COUNT(DISTINCT substring(requestDate, 1, 10)) AS numDays FROM request");
+			ResultSet rs = ps.executeQuery();
+			int numDays = 0;
+			if(rs.next()) {
+				numDays = rs.getInt("numDays");
+			}
+			rs.close();
+			ps.close();
+			
+			// Get total number of requests
+			ps = conn.prepareStatement("SELECT COUNT(*) AS numRequests FROM request");
+			rs = ps.executeQuery();
+			int numRequests = 0;
+			if(rs.next()) {
+				numRequests = rs.getInt("numRequests");
+			}
+			rs.close();
+			ps.close();
+			
+			int requestsPerDay = numRequests/numDays;
+			return requestsPerDay;
+			
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+		
+		
+	}
+	
+	/**
+	 * Returns the average content length of http requests
+	 * @return int representing the average content length
+	 * @throws DBException
+	 */
+	public int getAverageContentLength() throws DBException {		
+		Connection conn = null;
+		PreparedStatement ps = null;
+		int average = -1;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT AVG(contentLength) AS avg_length FROM request");
+			ResultSet rs = ps.executeQuery();
+			
+			if (rs.next()){
+				average = rs.getInt("avg_length");
+			}
+			rs.close();
+			ps.close();
+			
+			return average;
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+}

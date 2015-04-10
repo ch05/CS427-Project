@@ -1,0 +1,37 @@
+package edu.ncsu.csc.itrust.Team805;
+
+import com.meterware.httpunit.TableRow;
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebResponse;
+import com.meterware.httpunit.WebTable;
+
+import edu.ncsu.csc.itrust.http.iTrustHTTPTest;
+
+public class ErrorListTest extends iTrustHTTPTest {
+	
+	@Override
+	protected void setUp() throws Exception {
+		super.setUp();
+		gen.clearAllTables();
+		gen.standardData();
+	}
+	
+	public void testErrorList() throws Exception {
+		//Login as Tester
+		WebConversation wc = login("9999999999", "pw");	
+		WebResponse wr = wc.getCurrentPage();
+		
+		wr = wr.getLinkWith("Error List").click();
+		WebTable table = wr.getTables()[0];
+		TableRow firstRow = table.getRows()[1];
+		TableRow secondRow = table.getRows()[2];
+		
+		assertTrue("MID",firstRow.getText().contains("1"));
+		assertTrue("Requested Page",firstRow.getText().contains("/iTrust/auth/patient/home.jsp"));
+		assertTrue("Error Message",firstRow.getText().contains("ArrayIndexOutOfBoundsException: 9"));
+		
+		assertTrue("MID",secondRow.getText().contains("2"));
+		assertTrue("Requested Page",secondRow.getText().contains("/iTrust/auth/patient/home.jsp"));
+		assertTrue("Error Message",secondRow.getText().contains("ClassNotFoundException: zxzxczczzdfs"));
+	}
+}

@@ -1,0 +1,268 @@
+package edu.ncsu.csc.itrust.dao.mysql;
+
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.ncsu.csc.itrust.DBUtil;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+
+public class CODTrendsDAO {
+
+	private DAOFactory factory;
+
+	
+	public CODTrendsDAO(DAOFactory factory) {
+		this.factory = factory;
+	}
+	
+	/**
+	 * Finds whether or not the patient given is dead
+	 * @param patientMID MID of the desired patient
+	 * @return True if the patient is dead, false otherwise
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	public boolean patientIsDead(long patientMID) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT MID FROM patients WHERE DateOfDeath IS NOT NULL AND MID=?");
+			ps.setLong(1, patientMID);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()) {
+				rs.close();
+				ps.close();
+				return true;
+			}
+			else{
+				rs.close();
+				ps.close();
+				return false;
+			}	
+			
+
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Gets the two most common causes of deaths for a certain HCP
+	 * @param hcpid ID of the HCP
+	 * @param gender Gender of the desired patients (Male, Female, All)
+	 * @param startDate Date to begin the search
+	 * @param endDate Date to end the search
+	 * @return List of patient MID's that are dead according the specified parameters
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	@SuppressWarnings("finally")
+	public List<String> getTwoCommonDeathsForHCPID(long hcpid, String gender, Date startDate, Date endDate) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<Long> results = new ArrayList<Long>();
+		List<String> ret = new ArrayList<String>();
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT DISTINCT PatientID FROM officevisits WHERE HCPID = ?");
+			ps.setLong(1, hcpid);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			while (rs.next()) {
+				long result = rs.getLong("PatientID");
+				if(this.patientIsDead(result))
+				{
+					results.add(result);
+				}
+				ret.add("" + result);
+			}
+			rs.close();
+			ps.close();
+
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return this.getTwoMostCommonDeathsMIDs(results, gender, startDate, endDate);
+		}
+	}
+	
+	/**
+	 * Finds the name associated with an ICDCode
+	 * @param icdCode Code for the disease
+	 * @return Name of the disease for the ICDCode
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	public String getCauseOfDeathName(String icdCode) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT Description FROM icdcodes WHERE Code = ?");
+			ps.setString(1, icdCode);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()) {
+				String result = rs.getString("Description");
+				rs.close();
+				ps.close();
+				return result;
+			}
+			else{
+				rs.close();
+				ps.close();
+				return null;
+			}	
+			
+
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Finds the two most common causes of deaths among all HCP's
+	 * @param gender Gender of the patients desired to be in the results (Male, Female, All)
+	 * @param startDate Date to start the search
+	 * @param endDate Date to end the search
+	 * @return List of the top two names of diseases according to the specified parameters
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	@SuppressWarnings("finally")
+	public List<String> getTwoMostCommonDeaths(String gender, Date startDate, Date endDate) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<String> results = new ArrayList<String>();
+
+	    
+		try {
+			conn = factory.getConnection();
+			if(gender.equalsIgnoreCase("All")){
+				ps = conn.prepareStatement("SELECT DISTINCT CauseOfDeath, COUNT(CauseOfDeath) FROM patients WHERE YEAR(?) <= YEAR(DateOfDeath) AND YEAR(DateOfDeath) <= YEAR(?) GROUP BY CauseOfDeath ORDER BY COUNT(CauseOfDeath) DESC");
+				ps.setDate(1, startDate);
+				ps.setDate(2, endDate);
+			}
+			else{
+				ps = conn.prepareStatement("SELECT DISTINCT CauseOfDeath, COUNT(CauseOfDeath) FROM patients WHERE Gender = ? AND YEAR(?) <= YEAR(DateOfDeath) AND YEAR(DateOfDeath) <= YEAR(?) GROUP BY CauseOfDeath ORDER BY COUNT(CauseOfDeath) DESC");
+				ps.setString(1, gender);
+				ps.setDate(2, startDate);
+				ps.setDate(3, endDate);
+			}
+			ResultSet rs;
+			rs = ps.executeQuery();
+			int count = 0;
+			while(rs.next() && count < 2) {
+				
+				String result = rs.getString("CauseOfDeath");
+				if(!result.isEmpty())
+				{
+					String name = this.getCauseOfDeathName(result);
+					results.add("Name: " + name + ", Code: " + result + ", Number of Deaths: " + rs.getString("COUNT(CauseOfDeath)"));
+					count++;
+				}
+			}
+	
+			rs.close();
+			ps.close();
+			
+
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return results;
+		}
+	}
+	
+	/**
+	 * Finds the two most common deaths among specific patients
+	 * @param mids List of MID's of the patients to search
+	 * @param gender Gender of the patients to be included in results (Male, Female, All)
+	 * @param startDate Date to start the search
+	 * @param endDate Date to end the search
+	 * @return List of the top two names of the most common deaths for the specified parameters
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	@SuppressWarnings("finally")
+	public List<String> getTwoMostCommonDeathsMIDs(List<Long> mids, String gender, Date startDate, Date endDate) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<String> results = new ArrayList<String>();
+
+	    
+		try {
+			conn = factory.getConnection();
+			String statement = "SELECT DISTINCT CauseOfDeath, COUNT(CauseOfDeath) FROM patients WHERE (";
+			for(int i = 0; i < mids.size(); i++)
+			{	
+				if(i+1 == mids.size())
+					statement += "MID = " + mids.get(i) + ")";
+				else
+					statement += "MID = " + mids.get(i) + " OR ";
+			}
+			
+			if(gender.equalsIgnoreCase("All")){
+
+				statement += " AND YEAR(?) <= YEAR(DateOfDeath) AND YEAR(DateOfDeath) <= YEAR(?) GROUP BY CauseOfDeath ORDER BY COUNT(CauseOfDeath) DESC";
+				ps = conn.prepareStatement(statement);
+				
+				ps.setDate(1, startDate);
+				ps.setDate(2, endDate);
+			}
+			else{
+				statement += " AND Gender = ? AND YEAR(?) <= YEAR(DateOfDeath) AND YEAR(DateOfDeath) <= YEAR(?) GROUP BY CauseOfDeath ORDER BY COUNT(CauseOfDeath) DESC";
+
+				ps = conn.prepareStatement(statement);
+				ps.setString(1, gender);
+				ps.setDate(2, startDate);
+				ps.setDate(3, endDate);
+			}
+			ResultSet rs;
+			rs = ps.executeQuery();
+			int count = 0;
+			while(rs.next() && count < 2) {
+				
+				String result = rs.getString("CauseOfDeath");
+				if(!result.isEmpty())
+				{
+					String name = this.getCauseOfDeathName(result);
+					results.add("Name: " + name + ", Code: " + result + ", Number of Deaths: " + rs.getString("COUNT(CauseOfDeath)"));
+					count++;
+				}
+			}
+	
+			rs.close();
+			ps.close();
+			
+
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return results;
+		}
+	}
+}

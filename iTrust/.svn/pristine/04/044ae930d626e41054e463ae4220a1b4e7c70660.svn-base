@@ -1,0 +1,195 @@
+package edu.ncsu.csc.itrust.dao.mysql;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import edu.ncsu.csc.itrust.DBUtil;
+import edu.ncsu.csc.itrust.beans.ResponseBean;
+import edu.ncsu.csc.itrust.beans.loaders.ResponseBeanLoader;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.exception.DBException;
+
+/**
+ * Used for the logging mechanism.
+ * 
+ * DAO stands for Database Access Object. All DAOs are intended to be reflections of the database, that is,
+ * one DAO per table in the database (most of the time). For more complex sets of queries, extra DAOs are
+ * added. DAOs can assume that all data has been validated and is correct.
+ * 
+ * DAOs should never have setters or any other parameter to the constructor than a factory. All DAOs should be
+ * accessed by DAOFactory (@see {@link DAOFactory}) and every DAO should have a factory - for obtaining JDBC
+ * connections and/or accessing other DAOs.
+ * 
+ *  
+ * 
+ */
+public class ResponseDAO {
+	private DAOFactory factory;
+	private ResponseBeanLoader rbLoader; 
+	/**
+	 * The typical constructor.
+	 * @param factory The {@link DAOFactory} associated with this DAO, which is used for obtaining SQL connections, etc.
+	 */
+	public ResponseDAO(DAOFactory factory) {
+		this.factory = factory;
+		this.rbLoader = new ResponseBeanLoader();
+	}
+	
+	/**
+	 * Add a new response entry to the database.  Will be called during jsp execution.
+	 * 
+	 * @param response - ResponseBean object
+	 * @return the id associated with the newly inserted response
+	 * @throws DBException
+	 */
+	public int addResponse(ResponseBean response) throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("INSERT INTO response (latency, requested_page) VALUES (?, ?)");
+			ps.setDouble(1, response.getLatency());
+			ps.setString(2, response.getRequestedPage());
+			ps.execute();
+			
+			ps.close();
+			
+			ps = conn.prepareStatement("SELECT LAST_INSERT_ID() FROM response");
+			ResultSet rs = ps.executeQuery();
+			
+			int id = -1;
+			if (rs.next()){
+				id = rs.getInt(1);
+			}
+			
+			rs.close();
+			ps.close();
+			
+			return id;
+			
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Updates the content length for the response entry associated with the resID.
+	 * This function will be called from ResponseTrackerServlet.
+	 * 
+	 * @param response - ResponseBean object
+	 * @param resID - The id of the response table entry
+	 * @throws DBException
+	 */
+	public void updateContentLength(ResponseBean response, int resID) throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("UPDATE response SET content_length=? WHERE id=?");
+			ps.setInt(1, response.getContentLength());
+			ps.setInt(2, resID);
+			ps.execute();
+		
+			ps.close();
+			
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns a list of all the responses in the response table.
+	 * 
+	 * @return List of ResponseBean objects
+	 * @throws DBException
+	 */
+	public List<ResponseBean> getResponses() throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT * FROM response");
+			ResultSet rs = ps.executeQuery();
+			
+			List<ResponseBean> responses = rbLoader.loadList(rs);
+			rs.close();
+			ps.close();
+			
+			return responses;
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns the average response latency.
+	 * 
+	 * @return an Integer denoting the average latency in milliseconds
+	 * @throws DBException
+	 */
+	public int getAverageLatency() throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		int average = -1;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT AVG(latency) AS avg_latency FROM response");
+			ResultSet rs = ps.executeQuery();
+			
+			if (rs.next()){
+				average = rs.getInt("avg_latency");
+			}
+			rs.close();
+			ps.close();
+			
+			return average;
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns the average content length of a http response.
+	 * 
+	 * @return an Integer denoting the average content length in bytes
+	 * @throws DBException
+	 */
+	public int getAverageContentLength() throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		int average = -1;
+		
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT AVG(content_length) AS avg_length FROM response");
+			ResultSet rs = ps.executeQuery();
+			
+			if (rs.next()){
+				average = rs.getInt("avg_length");
+			}
+			rs.close();
+			ps.close();
+			
+			return average;
+		} catch(SQLException e) {
+			throw new DBException(e);
+		}finally{
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+}

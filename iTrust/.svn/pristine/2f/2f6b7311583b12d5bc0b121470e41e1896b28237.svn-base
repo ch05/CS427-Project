@@ -1,0 +1,100 @@
+package edu.ncsu.csc.itrust.CS427_MP2;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import org.jfree.data.category.DefaultCategoryDataset;
+
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebForm;
+import com.meterware.httpunit.WebResponse;
+import com.meterware.httpunit.WebTable;
+
+import de.laures.cewolf.DatasetProduceException;
+import junit.framework.TestCase;
+import edu.ncsu.csc.itrust.action.EditPersonnelAction;
+import edu.ncsu.csc.itrust.beans.AdverseEventBean;
+import edu.ncsu.csc.itrust.beans.PersonnelBean;
+import edu.ncsu.csc.itrust.charts.AdverseEventsData;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.enums.TransactionType;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+import edu.ncsu.csc.itrust.http.iTrustHTTPTest;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebForm;
+import com.meterware.httpunit.WebResponse;
+import com.meterware.httpunit.WebTable;
+import edu.ncsu.csc.itrust.enums.TransactionType;
+
+
+public class TestingFault2 extends iTrustHTTPTest {
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private TestDataGenerator gen = new TestDataGenerator();
+	private EditPersonnelAction personnelEditor;
+	
+	@Override
+	protected void setUp() throws Exception {
+		super.setUp();
+		gen.clearAllTables();
+		gen.standardData();
+	}
+
+	/**
+	 * testEditPatient
+	 * @throws Exception
+	 */
+	public void testEditPatient() throws Exception {
+		// Login
+		WebConversation wc = login("9000000001", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		assertLogged(TransactionType.HOME_VIEW, 9000000001L, 0L, "");
+		
+		wr = wr.getLinkWith("Edit Personnel").click();		
+        
+		assertEquals("iTrust - Please Select a Personnel", wr.getTitle());
+        WebForm personnelForm = wr.getForms()[1];//SEARCH BY NAME IS THE SECOND FORM(index 1)
+        
+		personnelForm.setParameter("FIRST_NAME", "Kelly");
+		personnelForm.setParameter("LAST_NAME", "Doctor");
+		
+//		System.out.println(personnelForm.getSubmitButtons()[1]);		
+		personnelForm.getSubmitButtons()[1].click();
+		wr = personnelForm.submit(); 
+		
+		//ACCESS TO THE HIDDEN BUTTON
+		personnelForm.getScriptableObject().setParameterValue("UID_PERSONNELID", "9000000000");
+		wr = personnelForm.submit(); 
+		
+		assertEquals("iTrust - Edit Personnel", wr.getTitle());
+		
+		personnelForm = wr.getForms()[0];
+		personnelForm.setParameter("streetAddress1", "98765 Oak Hills Drive");
+		personnelForm.getSubmitButtons()[0].click();
+		wr = wc.getCurrentPage();
+		
+		assertTrue(wr.getText().contains("Information Successfully Updated"));
+		
+		PersonnelBean j = factory.getPersonnelDAO().getPersonnel(9000000000l);
+		System.out.println(j.getSpecialty());
+		System.out.println(j.getStreetAddress1());
+		//The address1 field should be updated to the input value
+		assertEquals("98765 Oak Hills Drive", j.getStreetAddress1());
+		//By default Kelly Doctor's specialty is surgeon, which should not be changed
+		//Fault2 in part 1 will change the specialty field to blank after submitting the form
+		
+		//Expected to fail with default code
+		//This line should pass after fixing part 2
+		assertEquals("surgeon", j.getSpecialty());
+	}
+
+}

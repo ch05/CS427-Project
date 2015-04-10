@@ -1,0 +1,61 @@
+package edu.ncsu.csc.itrust.Team805;
+
+import com.meterware.httpunit.HttpUnitOptions;
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebForm;
+import com.meterware.httpunit.WebResponse;
+
+import edu.ncsu.csc.itrust.http.iTrustHTTPTest;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+/**
+ * Use Case 41
+ */
+public class SendReminderTest extends iTrustHTTPTest {
+	@Override
+	protected void setUp() throws Exception{
+		super.setUp();
+		HttpUnitOptions.setScriptingEnabled(false);
+		gen.clearAllTables();
+		gen.standardData();
+	}
+	
+	public void testSendReminder() throws Exception {
+		// Login
+		WebConversation wc = login("9000000089", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		wr = wr.getLinkWith("Send Reminder").click();
+		
+		// Submit reminder
+		WebForm reminderForm = wr.getForms()[0];
+		reminderForm.getScriptableObject().setParameterValue("numDays", "8");
+		reminderForm.submit();
+		
+		// Create timestamp
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+		Date date = new Date();
+		String stamp = dateFormat.format(date);
+				
+		// Check Reminder Outbox
+		wr = wr.getLinkWith("Reminder Outbox").click();
+		assertTrue(wr.getTables()[1].getRows()[1].getText().contains("Reminder: upcoming appointment in 8 day(s)"));
+		assertTrue(wr.getTables()[1].getRows()[1].getText().contains(stamp));
+		
+		// Login as patient
+		wr = wr.getLinkWith("Logout").click();
+		wc = login("1", "pw");
+		wr = wc.getCurrentPage();
+		
+		// Check patient inbox
+		wr = wr.getLinkWith("Message Inbox").click();
+		assertTrue(wr.getTables()[1].getRows()[1].getText().contains("Reminder System"));
+		assertTrue(wr.getTables()[1].getRows()[1].getText().contains("Reminder: upcoming appointment in 8 day(s)"));
+		assertTrue(wr.getTables()[1].getRows()[1].getText().contains(stamp));
+	}
+	
+
+
+}

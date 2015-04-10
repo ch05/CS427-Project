@@ -1,0 +1,93 @@
+package edu.ncsu.csc.itrust.dao.feature;
+
+import java.util.List;
+
+import org.junit.Test;
+
+import edu.ncsu.csc.itrust.beans.FeatureBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.dao.mysql.FeatureDAO;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+import junit.framework.TestCase;
+
+public class FeatureTest extends TestCase {
+
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private FeatureDAO featureDAO = factory.getFeatureDAO();
+
+	@Override
+	protected void setUp() throws Exception {
+		TestDataGenerator gen = new TestDataGenerator();
+		gen.clearAllTables();
+		gen.features();
+	}
+	
+	@Test
+	public void testGetFeatures() throws DBException{
+		List<FeatureBean> features = featureDAO.getFeatures();
+		
+		assertTrue(features != null);
+		assertTrue(features.size() == 12);
+		assertTrue(features.get(0).getFeatureName().equals("Patient View Access Log"));
+		assertTrue(features.get(0).getFilePath().equals("/iTrust/auth/patient/viewAccessLog.jsp"));
+		assertTrue(features.get(0).isEnabled());
+	}
+	
+	@Test
+	public void testAddFeature() throws DBException{
+		featureDAO.addFeature("Test Feature", "/testPath/", true);
+		
+		List<FeatureBean> features = featureDAO.getFeatures();
+		assertTrue(features != null);
+		assertTrue(features.size() == 13);
+		assertTrue(features.get(features.size()-1).getFeatureName().equals("Test Feature"));
+		assertTrue(features.get(features.size()-1).getFilePath().equals("/testPath/"));
+		assertTrue(features.get(features.size()-1).isEnabled());
+		
+		featureDAO.removeFeature("Test Feature");
+	}
+	
+	@Test
+	public void testEnableFeature() throws DBException{
+		featureDAO.enableFeature("Patient View Access Log", false);
+		
+		List<FeatureBean> features = featureDAO.getFeatures();
+		FeatureBean patientViewAccessLog = features.get(0);
+		assertTrue(!patientViewAccessLog.isEnabled());
+		
+		featureDAO.enableFeature("Patient View Access Log", true);
+		
+		features = featureDAO.getFeatures();
+		FeatureBean patientViewAccessLogUpdate = features.get(0);
+		assertTrue(patientViewAccessLogUpdate.isEnabled());
+	}
+	
+	@Test
+	public void testUpdateFilePath() throws DBException{
+		featureDAO.updateFilePath("Patient View Access Log", "/testPath/");
+		
+		List<FeatureBean> features = featureDAO.getFeatures();
+		FeatureBean patientViewAccessLog = features.get(0);
+		assertTrue(patientViewAccessLog.getFilePath().equals("/testPath/"));
+		
+		featureDAO.updateFilePath("Patient View Access Log", "/iTrust/auth/patient/viewAccessLog.jsp");
+		
+		features = featureDAO.getFeatures();
+		FeatureBean patientViewAccessLogUpdate = features.get(0);
+		assertTrue(patientViewAccessLogUpdate.getFilePath().equals("/iTrust/auth/patient/viewAccessLog.jsp"));
+	}
+	
+	@Test
+	public void testRemoveFeature() throws DBException{
+		featureDAO.removeFeature("Patient View Access Log");
+		
+		List<FeatureBean> features = featureDAO.getFeatures();
+		
+		assertTrue(features != null);
+		assertTrue(features.size() == 11);
+		assertTrue(!features.get(0).getFeatureName().equals("Patient View Access Log"));
+		assertTrue(!features.get(0).getFilePath().equals("/iTrust/auth/patient/viewAccessLog.jsp"));
+	}
+}

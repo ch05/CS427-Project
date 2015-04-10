@@ -1,0 +1,1 @@
+INSERT INTO features (feature_name, file_path, enabled) VALUES ("Patient View Access Log", "/iTrust/auth/patient/viewAccessLog.jsp", TRUE);

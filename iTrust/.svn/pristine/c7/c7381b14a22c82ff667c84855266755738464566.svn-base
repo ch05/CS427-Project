@@ -1,0 +1,47 @@
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.FeatureDAO"%>
+<%@page import="edu.ncsu.csc.itrust.beans.FeatureBean"%>
+<%@page import="java.util.List"%>
+<%@include file="/global.jsp"%>
+
+<head>
+
+<%
+pageTitle = "iTrust - Feature Control";
+%>
+
+<%@include file="/header.jsp"%>
+
+</head>
+
+<%
+	FeatureDAO fdao = prodDAO.getFeatureDAO();
+	List<FeatureBean> features = fdao.getFeatures();
+
+%>
+
+<body>
+	<div style="text-align: center;">
+		<h1>Feature Control</h1>
+		<table class="fancyTable" align="center" border="1" cellpadding="2" cellspacing="2">
+			<thead>
+				<th>Feature Name</th>
+				<th>Enabled?</th>
+			</thead>
+			
+			<tbody>
+				<%
+					for (FeatureBean feature : features){
+						%>
+						<tr>
+							<td><%= feature.getFeatureName() %></td>
+							<td><input type="checkbox" name="<%= feature.getFeatureName() %>" checked="<%= feature.isEnabled() %>"</td>
+						</tr>	
+						<%
+					}
+				%>
+			</tbody>
+		</table>
+	</div>
+</body>
+</html>
+<%@include file="/footer.jsp"%>

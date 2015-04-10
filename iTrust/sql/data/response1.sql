@@ -1,0 +1,1 @@
+INSERT INTO response (requested_page, content_length, latency) VALUES ("/iTrust/login.jsp", 13378, 3);

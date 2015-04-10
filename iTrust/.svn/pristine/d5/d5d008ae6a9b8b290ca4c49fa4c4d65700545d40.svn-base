@@ -1,0 +1,494 @@
+<%@page import="edu.ncsu.csc.itrust.enums.TransactionType"%>
+<%@page import="edu.ncsu.csc.itrust.dao.DAOFactory"%>
+<%@page import="java.util.List"%>
+<%@page import="edu.ncsu.csc.itrust.beans.TransactionBean"%>
+<%@page import="org.apache.commons.lang.StringEscapeUtils"%>
+<%@page import="edu.ncsu.csc.itrust.enums.Role"%>
+<%@page import="java.util.Date"%>
+<%@page import="java.text.SimpleDateFormat"%>
+<%@page import="java.text.ParseException"%>
+<%@page import="java.util.ArrayList"%>
+<%@page import="java.util.HashMap"%>
+<%@page import="java.util.Set"%>
+<%@page import="java.util.Objects"%>
+<%@page import="java.util.Calendar"%>
+<%@page import="java.util.Collections"%>
+<%@page import="edu.ncsu.csc.itrust.beans.PersonnelBean"%>
+
+<%@include file="/global.jsp"%>
+<%
+	pageTitle = "iTrust - Transaction Log";
+%>
+<!-- <title>iTrust - Transaction Log</title> -->
+<%@include file="/header.jsp"%>
+
+<%-- supposed to hide/show date picker --%>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$('#date').change(function() {
+			alert("hello world");
+			selection = $(this).val();
+			alert(selection);
+			switch (selection) {
+			case 'Select Date':
+				$('.selectDate').show();
+				break;
+			default:
+				$('.selectDate').hide();
+				break;
+			}
+		});
+	});
+</script>
+<!-- Makes the charts show up -->
+<script>
+	function showCharts() {
+		$('.charts').show();
+	}
+</script>
+<%-- google charts --%>
+<!--Load the AJAX API-->
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+	// Load the Visualization API and the piechart package.
+	google.load('visualization', '1.0', {
+		'packages' : [ 'corechart' ]
+	});
+
+/*
+	Function that draws the chart
+	ChartType is the type of graph
+	containerID is the div id that the graph goes to
+	dataArray is the data to be graphed
+	options specify misc settings 
+*/
+	function drawChart(chartType, containerID, dataArray, options) {
+		var data = google.visualization.arrayToDataTable(dataArray);
+		var containerDiv = document.getElementById(containerID);
+		var chart = false;
+
+		if (chartType.toUpperCase() == 'BARCHART') {
+			chart = new google.visualization.BarChart(containerDiv);
+		} else if (chartType.toUpperCase() == 'COLUMNCHART') {
+			chart = new google.visualization.ColumnChart(containerDiv);
+		} else if (chartType.toUpperCase() == 'PIECHART') {
+			chart = new google.visualization.PieChart(containerDiv);
+		} else if (chartType.toUpperCase() == 'TABLECHART') {
+			chart = new google.visualization.Table(containerDiv);
+		}
+
+		if (chart == false) {
+			return false;
+		}
+
+		chart.draw(data, options);
+	}
+</script>
+
+<%!public void categorize(HashMap dict, String key) {
+	if (!dict.containsKey(key))
+		dict.put(key, 0);
+	dict.put(key, (Integer) (dict.get(key)) + 1);
+	return;
+}%>
+<%
+	String msg = "";
+	String btnValue = "";
+	String role1 = "";
+	String role2 = "";
+	String role1_print = "";
+	String role2_print = "";
+	String date = "";
+	String transaction = "";
+	String startDate = "";
+	String endDate = "";
+	Date start = new Date();
+	Date end = new Date();
+	boolean check_print;
+	boolean first_role_check;
+	boolean second_role_check;
+	boolean start_check;
+	boolean end_check;
+	boolean trans_check;
+	HashMap<String, Integer> dictRole1 = new HashMap<String, Integer>();
+	HashMap<String, Integer> dictRole2 = new HashMap<String, Integer>();
+	HashMap<String, Integer> dictMonth = new HashMap<String, Integer>();
+	HashMap<String, Integer> dictTransactionType = new HashMap<String, Integer>();
+	List<HashMap<String, Integer>> dicts = new ArrayList<HashMap<String, Integer>>();
+	dicts.add(dictRole1);
+	dicts.add(dictRole2);
+	dicts.add(dictMonth);
+	dicts.add(dictTransactionType);
+	
+	if (request.getParameter("request") != null) {
+		btnValue = request.getParameter("request");
+		role1 = request.getParameter("role1");
+		role2 = request.getParameter("role2");
+		date = request.getParameter("date");
+		transaction = request.getParameter("transaction");
+		startDate = request.getParameter("startDate");
+		endDate = request.getParameter("endDate");
+		if (date.equals("ALL") && (!startDate.equals("")) || (!endDate.equals("")))
+			date = "Select Date";
+		if (date.equals("Select Date")) {
+			try {
+				SimpleDateFormat frmt = new SimpleDateFormat("MM/dd/yyyy");
+				if (!startDate.equals(""))
+					start = frmt.parse(startDate);
+				if (!endDate.equals(""))
+					end = frmt.parse(endDate);
+			} catch (ParseException e) {
+				msg = "ERROR: Date must by in the format: MM/dd/yyyy";
+			}
+		}
+	}
+
+	if (msg.contains("ERROR")) {
+%>
+<span class="iTrustError"><%=msg%></span>
+<%
+	} else {
+%>
+<span class="iTrustMessage"><%=msg%></span>
+<%
+	}
+%>
+
+<form name="form1" action="transactionLog.jsp?clicked=true" method="post">
+	<table class="fTable">
+		<tbody>
+			<tr>
+				<td>Role1:</td>
+				<td><select name="role1">
+						<option value="ALL">ALL</option>
+						<%
+							for (Role r : Role.values()) {
+						%><option
+							<%if (r.name().equals(role1))
+				out.println("selected");%>
+							value="<%=r.name()%>"><%=r.name()%></option>
+						<%
+							}
+						%>
+				</select></td>
+			</tr>
+			<tr>
+				<td>Role2:</td>
+				<td><select name="role2">
+						<option value="ALL">ALL</option>
+						<%
+							for (Role r : Role.values()) {
+						%><option
+							<%if (r.name().equals(role2))
+				out.println("selected");%>
+							value="<%=r.name()%>"><%=r.name()%></option>
+						<%
+							}
+						%>
+				</select></td>
+			</tr>
+			<tr>
+				<td>Date:</td>
+				<td><select name="date" id="date">
+						<option value="ALL">ALL</option>
+						<option
+							<%if (date.equals("Select Date"))
+			out.println("selected");%>
+							value="<%="Select Date"%>">Select Date</option>
+				</select></td>
+			</tr>
+		</tbody>
+		<tbody class="selectDate" style="display:">
+			<tr>
+				<td>
+					<p>Start Date:</p> <input name="startDate"
+					value="<%=StringEscapeUtils.escapeHtml("" + (startDate))%>"
+					size="10">
+				</td>
+				<td><input type=button value="Select Date"
+					onclick="displayDatePicker('startDate');"></td>
+			</tr>
+			<tr>
+				<td>
+					<p>End Date:</p> <input name="endDate"
+					value="<%=StringEscapeUtils.escapeHtml("" + (endDate))%>"
+					size="10">
+				</td>
+				<td><input type=button value="Select Date"
+					onclick="displayDatePicker('endDate');"></td>
+			</tr>
+		</tbody>
+		<tbody>
+			<tr>
+				<td>Transaction:</td>
+				<td><select name="transaction">
+						<option value="ALL">ALL</option>
+						<%
+							for (TransactionType t : TransactionType.values()) {
+						%><option
+							<%if (t.name().equals(transaction))
+				out.println("selected");%>
+							value="<%=t.name()%>"><%=t.getDescription()%></option>
+							
+						<%
+							}
+						%>
+						</select></td>
+			</tr>
+			<tr>
+			<td>	
+			<input type="submit" name="request" id="view"
+				style="font-size: 16pt; font-weight: bold;" value="View"/> 
+			<input type="submit" name="request" id="sum"
+				style="font-size: 16pt; font-weight: bold;" value="Summarize"/>
+			</td>
+			</tr>
+		</tbody>
+	</table>
+</form>
+<br />
+
+<div id="Role1" class="charts" style="display: none; width: 400; height: 300"></div>
+<div id="Role2" class="charts" style="display: none; width: 400; height: 300"></div>
+<div id="Month/Year" class="charts" style="display: none; width: 400; height: 300"></div>
+<div id="Transaction Types" class="charts" style="display: none; width: 400; height: 300"></div>
+
+<div id="resultsTable">
+<table border=1>
+	<tbody>
+	<tr>
+		<th>First Role</th>
+		<th>Second Role</th>
+		<th>Transaction Name</th>
+		<th>Additional Information</th>
+		<th>Time Stamp</th>
+	</tr>
+<%
+		Calendar cal = Calendar.getInstance();
+		List<TransactionBean> list = DAOFactory.getProductionInstance()
+				.getTransactionDAO().getAllTransactions();
+		//if (request.getParameter("clicked") != null) {
+			for (TransactionBean t : list) {
+				if (((t.getLoggedInMID() / 100000000) >= 10)
+						&& ((t.getLoggedInMID() / 100000000) < 91)) {
+					PersonnelBean pdao = DAOFactory.getProductionInstance()
+							.getPersonnelDAO()
+							.getPersonnel(t.getLoggedInMID());
+					//out.println(pdao.getRole());
+					role1_print = pdao.getRoleString().toUpperCase();
+					if (pdao.getRoleString().toUpperCase().equals(role1))
+						first_role_check = true;
+					else
+						first_role_check = false;
+					//break;
+				} else if ((t.getLoggedInMID() < 10000)
+						&& (t.getLoggedInMID() > 0)) {
+					role1_print = "PATIENT";
+					if (role1.equals("PATIENT"))
+						first_role_check = true;
+					else
+						first_role_check = false;
+					//break;
+				} else {
+					role1_print = "TESTER";
+					if (role1.equals("TESTER"))
+						first_role_check = true;
+					else
+						first_role_check = false;
+					//break;
+				}
+				
+				//out.println(role1_print);
+				if (((t.getSecondaryMID() / 100000000) >= 10)
+						&& ((t.getSecondaryMID() / 100000000) < 91)) {
+					PersonnelBean pdao = DAOFactory.getProductionInstance()
+							.getPersonnelDAO()
+							.getPersonnel(t.getSecondaryMID());
+					//out.println(pdao.getRole());
+					role2_print = pdao.getRoleString().toUpperCase();
+					if (pdao.getRoleString().toUpperCase().equals(role2))
+						second_role_check = true;
+					else
+						second_role_check = false;
+					break;
+				} else if ((t.getSecondaryMID() < 10000)
+						&& (t.getSecondaryMID() > 0)) {
+					role2_print = "PATIENT";
+					if (role2.equals("PATIENT"))
+						second_role_check = true;
+					else
+						second_role_check = false;
+					//break;
+				} else if (t.getSecondaryMID() == 0) {
+					role2_print = "ADMIN";
+					if (role2.equals("ADMIN"))
+						second_role_check = true;
+					else
+						second_role_check = false;
+					//break;
+				} else {
+					role2_print = "TESETER";
+					if (role2.equals("TESTER"))
+						second_role_check = true;
+					else
+						second_role_check = false;
+					//break;
+				}
+				
+				//out.println(first_role_check&&second_role_check);
+				//out.println(startDate);
+				//out.println(end);
+				if (start.before(t.getTimeLogged())
+						&& end.after(t.getTimeLogged())
+						&& date.equals("Select Date"))
+					check_print = true;
+				else if (!date.equals("Select Date"))
+					check_print = true;
+				else if (startDate.equals("") && end.after(t.getTimeLogged()))
+					check_print = true;
+				else if (start.before(t.getTimeLogged()) && endDate.equals(""))
+					check_print = true;
+				else
+					check_print = false;
+				
+				if (transaction.equals("ALL"))
+					trans_check = true;
+				else if (transaction.equals(t.getTransactionType().name()))
+					trans_check = true;
+				else
+					trans_check = false;
+				if (role1.equalsIgnoreCase("ALL"))
+					first_role_check = true;
+				if (role2.equalsIgnoreCase("ALL"))
+					second_role_check = true;
+					//out.println(first_role_check);
+					//out.println(second_role_check);
+
+				if (check_print && first_role_check && second_role_check
+						&& trans_check == true) {
+					cal.setTime(new Date(t.getTimeLogged().getTime()));
+					int year = cal.get(Calendar.YEAR);
+					int month = cal.get(Calendar.MONTH);
+					categorize(dictRole1, role1_print);
+					categorize(dictRole2, role2_print);
+					categorize(dictMonth, "" + month + "/" + year);
+					categorize(dictTransactionType, t.getTransactionType()
+								.name());
+%>
+	<tr>
+		<td><%=StringEscapeUtils.escapeHtml(""+(role1_print) )%></td>
+		<td><%=StringEscapeUtils.escapeHtml(""+(role2_print) )%></td>
+		<td><%=StringEscapeUtils.escapeHtml(""+(t.getTransactionType().name()) )%></td>
+		<td><%=StringEscapeUtils.escapeHtml(""+(t.getAddedInfo()) )%></td>
+		<td><%=StringEscapeUtils.escapeHtml(""+(t.getTimeLogged()) )%></td>
+	</tr>
+<%
+				}
+%>
+	<%
+		}
+	//} //if check
+	%>
+	</tbody>
+</table>
+</div>
+<script type="text/javascript">
+	<%
+	for(int i = 0; i < dicts.size(); i++){
+	%>
+	google.setOnLoadCallback(function() {
+	var chartDivs = [ 'Role1', 'Role2', 'Month/Year', 'Transaction Types' ];
+	var chartLength = chartDivs.length;
+		//Create the data table.
+		<%
+		String dataStrHeader = "[['Name', 'Total'], ";
+		String dataStr = "";
+		// build data for javascript
+		if(dicts.get(i).size() > 0){
+			SimpleDateFormat frmt = new SimpleDateFormat("M/yyyy");
+			Set<String> dictKeys = dicts.get(i).keySet();
+			List<Date> listDate = new ArrayList<Date>();
+			List<String> dateSorted = new ArrayList<String>();
+			// 2nd dict contains dates as strings
+			if(i==2){
+				try{
+					// convert strings to dates
+					for(String key : dictKeys){
+						Date dateSort = frmt.parse(key);
+						listDate.add(dateSort);
+					}
+					// sortes dates
+					Collections.sort(listDate);
+					// converts dates back to strings
+					for(Date d : listDate){
+						String dateSortStr = frmt.format(d);
+						dateSorted.add(dateSortStr);
+					}
+				}
+				catch (Exception e){
+					
+				}
+			}
+			for(String key : ((i==2)?dateSorted:dictKeys)){
+				dataStr += "['" + key + "', " + dicts.get(i).get(key) + "],";
+			}
+			dataStr = dataStr.substring(0, dataStr.length()-1);
+			dataStr += "];";
+			out.println("var dataArray" + i + " = " + dataStrHeader + dataStr);
+			// set options
+			out.println("var options" + i + " = { 'title' : chartDivs[" + i + "],'width' : 400,'height' : 300};");
+		%>
+	drawChart('columnChart',  <%= "chartDivs[" + i + "]"%>, <%="dataArray" + i%>, <%="options" +i %>);
+		<%
+		} else {
+			// no data available
+		}
+		%>
+	});
+<%
+	}
+	%>
+</script>
+
+<% if (btnValue.equals("Summarize")) { %>
+	<script>
+	showCharts();
+	</script>
+<%}%>
+
+ 	<h1>
+		<a href="/iTrust">Back to iTrust</a>
+	</h1>
+	<h1>Transaction Code Reference</h1>
+	<a name="transactioncodes"></a> List is automatically generated from
+	the
+	<code>edu.ncsu.csc.itrust.enums.TransactionType</code>
+	enum.
+	<table border=1>
+		<tbody>
+			<tr>
+				<th>Type</th>
+				<th>Code</th>
+				<th>Description</th>
+			</tr>
+			<%
+				for (TransactionType type : TransactionType.values()) {
+			%>
+			<tr>
+				<td><%=type.name()%></td>
+				<%
+					
+				%><td><%=type.getCode()%></td>
+				<%
+					
+				%><td><%=type.getDescription()%></td>
+			</tr>
+			<%
+				}
+			%>
+		</tbody>
+	</table>
+	<h1>
+		<a href="/iTrust">Back to iTrust</a>
+	</h1>
+<%@include file="/footer.jsp"%>

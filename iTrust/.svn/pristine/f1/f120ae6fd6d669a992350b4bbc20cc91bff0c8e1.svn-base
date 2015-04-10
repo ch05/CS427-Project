@@ -1,0 +1,93 @@
+<%@page import="edu.ncsu.csc.itrust.dao.mysql.FeatureDAO"%>
+<%@page import="edu.ncsu.csc.itrust.beans.FeatureBean"%>
+<%@page import="java.util.List"%>
+<%@include file="/global.jsp"%>
+
+<head>
+
+<%
+pageTitle = "iTrust - Feature Control";
+%>
+
+<%@include file="/header.jsp"%>
+
+</head>
+
+<body>
+	
+	<div style="text-align: center;">
+		<p id="upSuccess">Update Successful</p>
+		<p id="upUnsuccess">Update Unsuccessful</p>
+		<h1>Feature Control</h1>
+		<table class="fancyTable" align="center" border="1" cellpadding="2" cellspacing="2">
+			<thead>
+				<th>Feature Name</th>
+				<th>Enabled?</th>
+			</thead>
+			
+			<tbody>
+				<%
+					for (FeatureBean feature : features){
+						%>
+						<tr>
+							<td><%= feature.getFeatureName() %></td>
+							<%
+								if (!feature.isEnabled()){
+									%>
+										<td><input type="checkbox" class="featureCheck" name="<%= feature.getFeatureName() %>" /></td>
+									<%
+								}
+								else{
+									%>
+										<td><input type="checkbox" class="featureCheck" name="<%= feature.getFeatureName() %>" checked="<%= feature.isEnabled() %>"/></td>
+									<%
+								}
+							%>
+						</tr>	
+						<%
+					}
+				%>
+			</tbody>
+		</table>
+	</div>
+</body>
+</html>
+<%@include file="/footer.jsp"%>
+
+<script>
+	$(document).ready(function(){
+		var successMessage = $('body').find('p[id="upSuccess"]');
+		var unsuccessMessage = $('body').find('p[id="upUnsuccess"]');
+		
+		successMessage.hide();
+		unsuccessMessage.hide();
+		
+		$('.featureCheck').on('change', function(){
+			var name = $(this).prop('name');
+			var check = $(this).prop('checked');
+			
+			$.ajax({
+				url: 'FeatureControlServlet',
+				data: {
+					'featureName': name,
+					'enable': check
+				},
+				success: function(response){
+					console.log(response);
+					if (response == 'Update Successful'){
+						successMessage.toggle();
+						setTimeout(function(){
+							successMessage.toggle();
+						}, 2000);
+					}
+					else if (response == 'Update Unsuccessful'){
+						unsuccessMessage.toggle();
+						setTimeout(function(){
+							unsuccessMessage.toggle();
+						}, 2000);
+					}
+				}
+			});
+		});
+	});
+</script>

@@ -1,0 +1,144 @@
+package edu.ncsu.csc.itrust.Team805.UC63;
+
+import com.meterware.httpunit.WebConversation;
+import com.meterware.httpunit.WebForm;
+import com.meterware.httpunit.WebResponse;
+
+import edu.ncsu.csc.itrust.action.EditPersonnelAction;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.http.iTrustHTTPTest;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+/**
+ * UC 63 httptests
+ */
+public class OBInitializationTest extends iTrustHTTPTest {
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private TestDataGenerator gen = new TestDataGenerator();
+	private EditPersonnelAction personnelEditor;
+	
+	@Override
+	protected void setUp() throws Exception {
+		super.setUp();
+		gen.clearAllTables();
+		gen.standardData();	
+	}
+	
+	/**
+	 * Test if a doctor with OB/SYN specialty can add a new OB record
+	 */
+	public void testAddingOBRecordbyOBSYNSpecialty() throws Exception{
+		//Log in as newly generated doctor with OB/SYN specialty
+		WebConversation wc = login("9000000063", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		
+		//Go to the CODTrend page
+		wr = wr.getLinkWith("Obstetrics Patient Initialization").click();
+		assertEquals("iTrust - Please Select a Patient", wr.getTitle());		
+		
+		WebForm patientForm = wr.getForms()[0];
+		patientForm.getScriptableObject().setParameterValue("UID_PATIENTID", "1");		
+		patientForm.getButtons()[1].click();
+		
+		wr = wc.getCurrentPage();				
+		assertTrue(wr.getText().contains("Patient Initialization Records"));
+		//Check the original two default records are there
+		assertTrue(wr.getText().contains("2002-04-23"));
+		assertTrue(wr.getText().contains("2000-04-23"));
+		
+		//Only doctor in OB/SYN should be able to see the button
+		assertTrue(wr.getText().contains("Add Record"));
+		
+		//Test the OB/SYN doctor can go to the Add Record page		
+		wr = wr.getLinkWith("Add Record").click();
+		assertTrue(wr.getText().contains("Last Menstrual Period:"));
+		assertTrue(wr.getText().contains("Delivery Type:"));
+		assertTrue(wr.getText().contains("Add Record"));	
+
+		//Fill in and submit a new form
+		WebForm form = wr.getForms()[0];
+		form.setParameter("lmp", "2000-10-07");
+		form.setParameter("yoc", "2002");
+		form.setParameter("numWeeksPreg", "12-4");
+		form.setParameter("numHoursLabor", "3");
+		form.setParameter("dt", "Caesarean Section");
+		
+		form.getSubmitButtons()[0].click();
+		
+		wr = wc.getCurrentPage();		
+	}
+	
+	/**
+	 * Test if a doctor with non-OB/SYN specialty cannot add a new OB record
+	 */
+	public void testAddingOBRecordbyOtherSpecialty() throws Exception{
+		//Log in as Kelly Doctor
+		WebConversation wc = login("9000000000", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		
+		//Go to the CODTrend page
+		wr = wr.getLinkWith("Obstetrics Patient Initialization").click();
+		assertEquals("iTrust - Please Select a Patient", wr.getTitle());		
+		
+		WebForm patientForm = wr.getForms()[0];
+		patientForm.getScriptableObject().setParameterValue("UID_PATIENTID", "1");		
+		patientForm.getButtons()[1].click();
+		
+		wr = wc.getCurrentPage();				
+		assertTrue(wr.getText().contains("Patient Initialization Records"));
+		
+		//Doctors in other specialty should not be able to see the button
+		assertFalse(wr.getText().contains("Add Record"));								
+	}
+	
+	/**
+	 * Test if a doctor can read an already initialized OB record of a female patient
+	 */
+	public void testOBInitializationFemale() throws Exception{
+		//Log in as Kelly Doctor
+		WebConversation wc = login("9000000000", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		
+		//Go to the CODTrend page
+		wr = wr.getLinkWith("Obstetrics Patient Initialization").click();
+		assertEquals("iTrust - Please Select a Patient", wr.getTitle());		
+		
+		WebForm patientForm = wr.getForms()[0];
+		patientForm.getScriptableObject().setParameterValue("UID_PATIENTID", "1");		
+		patientForm.getButtons()[1].click();
+		
+		wr = wc.getCurrentPage();
+		
+		assertTrue(wr.getText().contains("Patient Initialization Records"));
+		assertTrue(wr.getText().contains("Office Visits"));
+		
+		//Check the doctor can read the record
+		wr = wr.getLinkWith("2002-04-23").click();
+		assertTrue(wr.getText().contains("Year of Conception"));
+		assertTrue(wr.getText().contains("Number of Weeks Pregnant:"));
+		assertTrue(wr.getText().contains("2002"));
+		assertTrue(wr.getText().contains("23-2"));
+	}
+	
+	/**
+	 * Test if male patient is eligible for obstertric care
+	 */
+	public void testOBInitializationMale() throws Exception{
+		//Log in as Kelly Doctor
+		WebConversation wc = login("9000000000", "pw");
+		WebResponse wr = wc.getCurrentPage();
+		
+		//Go to the CODTrend page
+		wr = wr.getLinkWith("Obstetrics Patient Initialization").click();
+		assertEquals("iTrust - Please Select a Patient", wr.getTitle());		
+		
+		WebForm patientForm = wr.getForms()[0];
+		patientForm.getScriptableObject().setParameterValue("UID_PATIENTID", "2");		
+		patientForm.getButtons()[1].click();
+		
+		wr = wc.getCurrentPage();
+		//Male patient should not be eligible for Obstetrics care
+		assertTrue(wr.getText().contains("The patient is not eligible for obstetric care"));		
+	}
+}

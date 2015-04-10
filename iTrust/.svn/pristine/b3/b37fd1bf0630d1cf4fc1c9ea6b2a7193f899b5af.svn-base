@@ -1,0 +1,333 @@
+package edu.ncsu.csc.itrust.dao.mysql;
+
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import edu.ncsu.csc.itrust.DBUtil;
+import edu.ncsu.csc.itrust.beans.ObstetricsBean;
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+
+public class ObstetricsDAO {
+
+	private DAOFactory factory;
+
+	
+	public ObstetricsDAO(DAOFactory factory) {
+		this.factory = factory;
+	}
+	
+	@SuppressWarnings("finally")
+	public List<Date> obDateForPatient(long patientMID) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<Date> dates = new ArrayList<Date>();
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT initDate FROM obinit WHERE MID = ? ORDER BY initDate DESC");
+			ps.setLong(1, patientMID);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			while(rs.next()){
+				dates.add(Date.valueOf(rs.getString("initDate")));
+			}	
+			
+			return dates;
+		} catch (SQLException e) {
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return dates;
+		}
+	}
+	
+	public boolean insertOBRecord(ObstetricsBean ob) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("INSERT INTO pregnancy (YOC, numWeeksPregnant, numHoursLabor, deliveryType) VALUES (?, ?, ?, ?)");
+			ps.setLong(1, ob.yearOfConception);
+			ps.setString(2, ob.numWeeksPregnant);
+			if(ob.numHoursInLabor == null)
+				ps.setNull(3, java.sql.Types.DOUBLE);
+			else
+				ps.setDouble(3, ob.numHoursInLabor);
+			ps.setString(4, ob.deliveryType);
+			ps.executeUpdate();
+			ps.close();
+			ps = conn.prepareStatement("SELECT * FROM pregnancy ORDER BY id DESC");
+			ResultSet rs1;
+			rs1 = ps.executeQuery();
+			int lastID = -1;
+			if(rs1.next())
+				lastID = rs1.getInt("id");
+			
+			ps.close();
+			rs1.close();
+			ps = conn.prepareStatement("INSERT INTO obinit (MID, initDate, LMP, pregID) VALUES (?, ?, ?, ?)");
+			Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+			ps.setLong(1, ob.patientMID);
+			ps.setDate(2, currentDate);
+			ps.setDate(3, ob.LMP);
+			ps.setInt(4, lastID);
+			ps.executeUpdate();
+			return true;
+		} catch (SQLException e) {
+			System.out.println("Error Message: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Inserts information into the database about a  obstetrics office visit
+	 * @param ob The ObstetricsBean that contains information about the visit
+	 * @return Boolean based on the success of the insertion
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	public boolean insertOBVisit(ObstetricsBean ob) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("INSERT INTO obvisit (numWeeksPregnant, weight, bloodPressure, heartRate, fundalHeight, visitDate) "
+					+ "VALUES (?, ?, ?, ?, ?, ?)");
+			ps.setInt(1, ob.numWeeksPregVisit);
+			ps.setDouble(2, ob.numPounds);
+			ps.setInt(3, ob.bloodPressure);
+			ps.setInt(4, ob.heartRate);
+			ps.setDouble(5, ob.fundalHeight);
+			ps.setDate(6, currentDate);
+			ps.executeUpdate();
+			ps.close();
+			ps = conn.prepareStatement("SELECT * FROM obvisit ORDER BY id DESC");
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()) {
+				int lastID = rs.getInt("id");
+				rs.close();
+				ps = conn.prepareStatement("INSERT INTO obinit_obvisit_link (initID, visitID) VALUES (?, ?)");
+				ps.setInt(1, ob.initID);
+				ps.setInt(2, lastID);
+				ps.executeUpdate();
+				ps.close();
+			}
+			return true;
+		} catch (SQLException e) {
+			System.out.println("Error Message: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Updates information related to a obstetrics office visit in the database
+	 * @param patientMID The MID of the patient of the visit
+	 * @param visitDate The date of the office visit
+	 * @param ob ObstetricsBean with information related to the visit
+	 * @return True if successful update, false otherwise
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	@SuppressWarnings("resource")
+	public boolean updateOBVisit(int patientMID, Date visitDate, ObstetricsBean ob) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+
+		try {
+			int visitID ;
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT obvisit.* FROM obvisit INNER JOIN obinit INNER JOIN obinit_obvisit_link"
+					+ " ON initID=obinit.id AND visitID=obvisit.id  WHERE MID = ? AND visitDate = ?");
+			ps.setLong(1, patientMID);
+			ps.setDate(2, visitDate);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()){
+				visitID = rs.getInt("id");
+				ps = conn.prepareStatement("UPDATE obvisit SET numWeeksPregnant=?, weight=?, bloodPressure=?,"
+						+ " heartRate=?, fundalHeight=?, visitDate=? WHERE id=?");
+				ps.setInt(1, ob.numWeeksPregVisit);
+				ps.setDouble(2, ob.numPounds);
+				ps.setInt(3, ob.bloodPressure);
+				ps.setInt(4, ob.heartRate);
+				ps.setDouble(5, ob.fundalHeight);
+				ps.setDate(6, visitDate);
+				ps.setInt(7, visitID);
+				ps.executeUpdate();
+				ps.close();
+			}	
+			else {
+				return false;
+			}
+			return true;
+		} catch (SQLException e) {
+			System.out.println("Error Message: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	public ObstetricsBean obRecordsForPatient(long patientMID, Date d) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		PreparedStatement ps2 = null;
+		ObstetricsBean ob = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT * FROM obinit WHERE MID = ? AND initDate = ?");
+			ps.setLong(1, patientMID);
+			ps.setDate(2, d);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()){
+				ps2 = conn.prepareStatement("SELECT * FROM pregnancy WHERE id = ?");
+				ps2.setInt(1, rs.getInt("pregID"));
+	
+				ResultSet pregSet;
+				pregSet = ps2.executeQuery();
+				pregSet.next();
+				long MID = rs.getLong("MID");
+				Date LMP = rs.getDate("LMP");
+				int yoc = pregSet.getInt("YOC");
+				String numpreg = pregSet.getString("numWeeksPregnant");
+				String deliveryType = pregSet.getString("deliveryType");
+				Double hoursLabor = pregSet.getDouble("numHoursLabor");
+				ob = new ObstetricsBean(yoc, numpreg, hoursLabor, deliveryType, LMP, MID);
+				ps2.close();
+			}	
+			ps.close();
+			return ob;
+		} catch (SQLException e) {
+			System.out.println("Error: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns a ObstetricsBean with information related to an Obstetrics office visit
+	 * @param patientMID The MID of the patient for the visit
+	 * @param date The date of the office visit
+	 * @return The ObstetricsBean filled with patient information for the visit
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	public ObstetricsBean obVisitsForPatient(long patientMID, Date date) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ObstetricsBean ob = null;
+
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT obvisit.* FROM obvisit INNER JOIN obinit INNER JOIN obinit_obvisit_link"
+					+ " ON initID=obinit.id AND visitID=obvisit.id  WHERE MID = ? AND visitDate = ?");
+			ps.setLong(1, patientMID);
+			ps.setDate(2, date);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()){
+				
+				int numWeeksPregnant = rs.getInt("numWeeksPregnant");
+				double weight = rs.getDouble("weight");
+				int heartRate = rs.getInt("heartRate");
+				int bloodPressure = rs.getInt("bloodPressure");
+				double fundalHeight = rs.getDouble("fundalHeight");
+				int initID = rs.getInt("id");
+				
+				ob = new ObstetricsBean(numWeeksPregnant, weight, heartRate, bloodPressure, fundalHeight, patientMID, initID);
+			}	
+			
+			ps.close();
+			
+			return ob;
+		} catch (SQLException e) {
+			System.out.println("Error: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Obtains the primary key (id) of a patient's initial obstetrics visit.
+	 * 
+	 * @param patientMID - MID of patient
+	 * @param d - Date of initial obstetric visit
+	 * @return integer id
+	 * @throws DBException
+	 */
+	public int getInitID(int patientMID, Date d) throws DBException{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		int initID = -1;
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT id FROM obinit WHERE MID = ? AND initDate = ?");
+			ps.setLong(1, patientMID);
+			ps.setDate(2, d);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			if(rs.next()) {
+				initID = rs.getInt("id");
+			}
+			ps.close();
+			return initID;
+		} catch (SQLException e) {
+			System.out.println("Error: " + e.getMessage());
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+		}
+	}
+	
+	/**
+	 * Returns all the dates that a patient attended an obstetrics office visit
+	 * @param patientMID The MID of the patient
+	 * @return A List of Dates for the visits of the patient
+	 * @throws ITrustException
+	 * @throws DBException
+	 */
+	@SuppressWarnings("finally")
+	public List<Date> obPatientVisitDate(long patientMID) throws ITrustException, DBException {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		List<Date> dates = new ArrayList<Date>();
+		try {
+			conn = factory.getConnection();
+			ps = conn.prepareStatement("SELECT visitDate FROM obvisit INNER JOIN obinit INNER JOIN obinit_obvisit_link"
+					+ " ON initID=obinit.id AND visitID=obvisit.id  WHERE MID = ? ORDER BY visitDate DESC");
+			ps.setLong(1, patientMID);
+			ResultSet rs;
+			rs = ps.executeQuery();
+			while(rs.next()){
+				dates.add(Date.valueOf(rs.getString("visitDate")));
+			}	
+			
+			return dates;
+		} catch (SQLException e) {
+			
+			throw new DBException(e);
+		} finally {
+			DBUtil.closeConnection(conn, ps);
+			return dates;
+		}
+	}
+}

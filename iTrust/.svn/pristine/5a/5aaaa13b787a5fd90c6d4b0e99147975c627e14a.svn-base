@@ -1,0 +1,117 @@
+package edu.ncsu.csc.itrust.dao.CODTrends;
+
+import static org.junit.Assert.assertTrue;
+
+import java.sql.Date;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import edu.ncsu.csc.itrust.dao.DAOFactory;
+import edu.ncsu.csc.itrust.dao.mysql.CODTrendsDAO;
+import edu.ncsu.csc.itrust.datagenerators.TestDataGenerator;
+import edu.ncsu.csc.itrust.exception.DBException;
+import edu.ncsu.csc.itrust.exception.ITrustException;
+import edu.ncsu.csc.itrust.testutils.TestDAOFactory;
+
+public class CODTrendsTest {
+	private DAOFactory factory = TestDAOFactory.getTestInstance();
+	private TestDataGenerator tdg = new TestDataGenerator();
+	private CODTrendsDAO ctd;
+	
+	/**
+	 * @throws java.lang.Exception
+	 */
+	@Before
+	public void setUp() throws Exception {
+		ctd = new CODTrendsDAO(factory);
+		tdg.clearAllTables();
+		tdg.deadpatient1();
+		tdg.deadpatient2();
+		tdg.deadpatient3();
+		tdg.deadpatient4();
+		tdg.deadpatient5();
+		tdg.deadpatient6();
+		tdg.deadpatient7();
+		tdg.deadpatient8();
+		tdg.deadpatient9();
+		tdg.deadpatient10();
+		tdg.icd9cmCodes();
+
+	}
+	
+	
+	@Test
+	public void testPatientIsDead() throws DBException, ITrustException {
+		assertTrue(ctd.patientIsDead(51));
+	}
+	
+	@Test
+	public void testPatientNotDead() throws DBException, ITrustException {
+		assertTrue(!ctd.patientIsDead(1));
+	}
+	
+	@Test
+	public void testNameOfDeath() throws DBException, ITrustException {
+		assertTrue(ctd.getCauseOfDeathName("84.50").equalsIgnoreCase("malaria"));
+	}
+	
+	@Test
+	public void testTwoMostCommonDeathAll() throws DBException, ITrustException {
+		List<String> list = ctd.getTwoMostCommonDeaths("All", Date.valueOf("2012-01-01"), Date.valueOf("2014-01-01"));
+		assertTrue(list.size() == 2);
+		assertTrue(list.get(0).contains("35.00"));
+		assertTrue(list.get(1).contains("84.50"));
+	}
+	
+	@Test
+	public void testTwoMostCommonDeathMale() throws DBException, ITrustException {
+		List<String> list = ctd.getTwoMostCommonDeaths("Male", Date.valueOf("2012-01-01"), Date.valueOf("2014-01-01"));
+		assertTrue(list.size() == 2);
+		assertTrue(list.get(0).contains("84.50"));
+		assertTrue(list.get(1).contains("35.00"));
+	}
+	
+	@Test
+	public void testTwoMostCommonDeathsMIDAll() throws DBException, ITrustException {
+		List<Long> mids = new ArrayList<Long>();
+		mids.add((long) 51);
+		mids.add((long) 52);
+		mids.add((long) 53);
+		mids.add((long) 54);
+		mids.add((long) 55);
+		mids.add((long) 56);
+
+		List<String> list = ctd.getTwoMostCommonDeathsMIDs(mids, "All", Date.valueOf("2012-01-01"), Date.valueOf("2014-01-01"));
+		assertTrue(list.size() == 2);
+		assertTrue(list.get(0).contains("84.50"));
+		assertTrue(list.get(1).contains("72.00"));
+	}
+
+	@Test
+	public void testTwoMostCommonDeathsMIDFemale() throws DBException, ITrustException {
+		List<Long> mids = new ArrayList<Long>();
+		mids.add((long) 51);
+		mids.add((long) 52);
+		mids.add((long) 53);
+		mids.add((long) 55);
+		mids.add((long) 56);
+		mids.add((long) 58);
+
+		List<String> list = ctd.getTwoMostCommonDeathsMIDs(mids, "Female", Date.valueOf("2012-01-01"), Date.valueOf("2014-01-01"));
+		assertTrue(list.size() == 2);
+		assertTrue(list.get(0).contains("35.00"));
+		assertTrue(list.get(1).contains("72.00"));
+	}
+	
+	@Test
+	public void testTwoMostCommonDeathsHCPID() throws DBException, ITrustException {
+		long hcpid = Long.parseLong("9000000000");
+		List<String> list = ctd.getTwoCommonDeathsForHCPID(hcpid, "All", Date.valueOf("2012-01-01"), Date.valueOf("2014-01-01"));
+		assertTrue(list.size() == 2);
+		assertTrue(list.get(0).contains("84.50"));
+		assertTrue(list.get(1).contains("35.00") || list.get(1).contains("72.00"));
+	}
+}
