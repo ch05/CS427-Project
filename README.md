@@ -1,6 +1,9 @@
 # CS427-Project
 Class project for CS427 in UIUC
 
+iTrust is an open-source role-based healthcare web application.
+The original codebase can be foudn on wiki for iTrust: http://agile.csc.ncsu.edu/iTrust/wiki/doku.php?id=start
+
 Files our group modified:
 
 httptests/edu/ncsu/csc/itrust/Team805
